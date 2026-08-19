@@ -30,6 +30,7 @@ Code - Parse AI Response
 IF - Ignore Spam
         ↓
 Gmail - Create Draft
+```
 
 🔄 How It Works
 
