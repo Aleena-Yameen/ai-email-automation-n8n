@@ -1,0 +1,197 @@
+{
+  "name": "AI Email Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8cd8fe9c-4e4e-4f89-8fc2-b10d61c0e45d",
+      "name": "Gmail - New Email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "UQREJBTtmLQxYRNr",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an AI email assistant.\n\nAnalyze the incoming email below.\n\nGive me:\n\n1. A short summary of the email.\n2. Categorize it into exactly ONE of:\n   Sales\n   Support\n   Meeting\n   Personal\n   Spam\n\n3. Identify the urgency:\n   High\n   Medium\n   Low\n\n4. Write a professional reply that could be sent to the sender.\n\nDo NOT send the email.\nDo NOT invent information.\nIf the email does not contain enough information to answer something, write a general professional response.\n\nINCOMING EMAIL:\n {{ $json.snippet }}\n\nReturn ONLY valid JSON in exactly this format:\n\n{\n  \"summary\": \"short summary\",\n  \"category\": \"Sales\",\n  \"urgency\": \"Low\",\n  \"reply\": \"professional reply\"\n}\n\n\n"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        304,
+        0
+      ],
+      "id": "76d289bc-a571-4ad2-a737-c5871ddbf18e",
+      "name": "Gemini - Analyze Email",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MI4urdkNvbXoGMEF",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $json.content.parts[0].text;\n\nconst result = JSON.parse(response);\n\nreturn [\n  {\n    json: result\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "id": "847aca3d-96a6-408a-8fdb-494c524ada20",
+      "name": "Code - Parse AI Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0381eef8-008d-4848-a8c7-ff266a8006d6",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "Spam",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        0
+      ],
+      "id": "32e313ca-c055-4162-9fd5-3c609e791c56",
+      "name": "IF - Ignore Spam"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Gmail - New Email').item.json.Subject }}",
+        "message": "={{ $json.reply }}",
+        "options": {
+          "sendTo": "={{ $('Gmail - New Email').item.json.From }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1216,
+        0
+      ],
+      "id": "38d386fa-a920-4dae-bb71-58161c2d1107",
+      "name": "Gmail - Create Draft",
+      "webhookId": "d0d09226-570f-44ce-afdf-3eea8deb0d24",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "UQREJBTtmLQxYRNr",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail - New Email": {
+      "main": [
+        [
+          {
+            "node": "Gemini - Analyze Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini - Analyze Email": {
+      "main": [
+        [
+          {
+            "node": "Code - Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "IF - Ignore Spam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Ignore Spam": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Create Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "3877bf32-7980-48a3-86a3-d05a7f176b45",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f3c5ed0450343461b63f2b3d885a52b9e331fd7199ddc2eceb01f5c6f4c83f0a"
+  },
+  "nodeGroups": [],
+  "id": "ruy9FRbYVBtFvSaD",
+  "tags": []
+}
